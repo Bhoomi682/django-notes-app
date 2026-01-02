@@ -1,35 +1,42 @@
 pipeline {
-    agent any 
+    agent any
     
-    stages{
-        stage("Clone Code"){
+    stages {
+        stage ("Code") {
             steps {
-                echo "Cloning the code"
-                git url:"https://github.com/LondheShubham153/django-notes-app.git", branch: "main"
+                echo " Cloning the Code"
+                git url:"https://github.com/adhya2020/django-notes-app.git" , branch: "main"
             }
         }
-        stage("Build"){
+        stage ("Build"){
             steps {
-                echo "Building the image"
+                echo "Build the image"
                 sh "docker build -t my-note-app ."
             }
         }
-        stage("Push to Docker Hub"){
+        stage ("Pushing the image to Dockerhub"){
             steps {
-                echo "Pushing the image to docker hub"
-                withCredentials([usernamePassword(credentialsId:"dockerHub",passwordVariable:"dockerHubPass",usernameVariable:"dockerHubUser")]){
-                sh "docker tag my-note-app ${env.dockerHubUser}/my-note-app:latest"
+                echo "pushing image to docker hub"
+                withCredentials([usernamePassword(credentialsId:"dockerHub",passwordVariable:"dockerHubPass",usernameVariable:"dockerHubUser")]) {
                 sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPass}"
+                sh "docker tag my-note-app ${env.dockerHubUser}/my-note-app:latest"
                 sh "docker push ${env.dockerHubUser}/my-note-app:latest"
                 }
             }
         }
-        stage("Deploy"){
-            steps {
-                echo "Deploying the container"
-                sh "docker-compose down && docker-compose up -d"
-                
-            }
-        }
+        
+          stage('Deploy to Kubernets'){
+             steps{
+                 script{
+                     dir('notesapp') {
+                         withKubeConfig(caCertificate: '', clusterName: '', contextName: '', credentialsId: 'kubernetes', namespace: '', restrictKubeConfigAccess: false, serverUrl: '') {
+                         sh 'kubectl delete --all pods'
+                         sh 'kubectl apply -f deployment.yaml'
+                         sh 'kubectl apply -f service.yaml'
+                         }
+                     }
+                 }
+             }
+          }
     }
 }
